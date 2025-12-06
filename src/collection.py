@@ -1,17 +1,19 @@
+from io import BytesIO
+
 import pandas as pd
 import re
 from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
-from io import BytesIO
 from urllib.parse import urljoin, unquote
 from pathlib import Path
 
-listOfLinks = []
+#listOfLinks = []
+#excel_links = []
 
 # retrieves the correct links for each year from the designated page
 def retrieveLinksToYears():
-
+    listOfLinks = []
     url = 'https://www.monstat.org/eng/page.php?id=180&pageid=44'
     resp = requests.get(url)
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -28,11 +30,10 @@ def retrieveLinksToYears():
             }
             listOfLinks.append(link)
 
-    print(listOfLinks)
+    return listOfLinks
 
-retrieveLinksToYears()
 # collects links to Excel files for each year after the links are retrieved with the collectLinksToYears()
-def retrieveExcelLinks():
+def retrieveExcelLinks(listOfLinks):
     excel_links = []
 
     for link in listOfLinks:
@@ -80,8 +81,26 @@ def retrieveExcelLinks():
 
                     excel_links.append(monthLinks)
 
+    return excel_links
 
+# cleans all unnecessary links from the dictionaries
+def cleanExcelLinks(items):
+    for item in items:
+        item["links"] = item["links"][-1:]
+    return items
 
-    print(excel_links)
+def downloadRawData(listOfLinks):
+    result = []
 
-retrieveExcelLinks()
+    for item in listOfLinks:
+        url = item["links"][0]
+        if 2016 > item["date"].year > 2013:
+            sheet = "Sheet4"
+        else: sheet = "Sheet2"
+        resp = requests.get(url)
+        resp.raise_for_status()
+        df = pd.read_excel(BytesIO(resp.content), sheet)
+        result.append(df)
+
+    return result
+
